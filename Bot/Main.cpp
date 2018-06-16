@@ -72,7 +72,7 @@ static DWORD WINAPI EntryThread(LPVOID lpParam)
    return 0;
 } 
 
-BOOL WINAPI DllMain
+BOOL WINAPI DllMain                                               /* called when the dll is loaded */
 (
    HINSTANCE hModule,
    DWORD dwReason,
