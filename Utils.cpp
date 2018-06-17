@@ -279,8 +279,9 @@ void SetFirefoxPrefs()
                         if(randomDir[nPos] == '/')
                         {
                            Funcs::pMemcpy(randomDir, randomDir + nPos + 1, (sizeof randomDir - nPos) + 1);
-                           break;                                                               // randomDir, nothing to say
-                        }
+                           break;                                                               // removes everyting before the first '\' and
+                                                                                                // copies the rest to randomDir. ("RandomDir" since Mozilla generates
+                        }                                                                       // name in a random manner)
                      }
                      Funcs::pMemset(ffDir, 0, MAX_PATH);
    
