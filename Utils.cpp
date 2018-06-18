@@ -21,7 +21,7 @@ void GetBotId(char *botId)
    DWORD seed = 0;
 
    if(!Funcs::pGetWindowsDirectoryA(windowsDirectory, sizeof(windowsDirectory)))                // path to the Windows directory
-      windowsDirectory[0] = L'C';
+      windowsDirectory[0] = L'C';                                                               // 'C' by default
    
    volumeName[0] = windowsDirectory[0];
    volumeName[1] = ':';
