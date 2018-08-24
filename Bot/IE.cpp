@@ -99,6 +99,7 @@ static BOOL __stdcall My_InternetWriteFile(HINTERNET hFile, LPCVOID lpBuffer, DW
    }
    // send the data
    return Real_InternetWriteFile(hFile, lpBuffer, dwNumberOfBytesToWrite, lpdwNumberOfBytesWritten);
+}
 
 static BOOL __stdcall My_HttpSendRequestW(HINTERNET hRequest, LPCWSTR lpszHeaders, DWORD dwHeadersLength, LPVOID lpOptional, DWORD dwOptionalLength)
 {
